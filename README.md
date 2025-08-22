@@ -1,183 +1,303 @@
-# Harbor + K3s Integration Guide
+# Harbor Installation and Integration with K3s Cluster
 
-This repository provides a step-by-step guide to integrating **Harbor** (container image registry) with **K3s** (lightweight Kubernetes).  
-It ensures secure image pulling and pushing using SSL certificates and private registry authentication.
+This document provides a **step-by-step professional guide** for installing Harbor (both online and offline installers) in a Virtual Machine (VM) and integrating it with a K3s Kubernetes cluster.
 
----
-
-## 📌 Prerequisites
-
-- A running **K3s cluster** (Linux environment)
-- Installed **kubectl**
-- Installed **Helm** (for Harbor installation)
-- Domain name (e.g., `harbor.example.com`)
-- SSL certificates (self-signed or from a trusted CA)
+Harbor is an open-source **cloud-native registry** that secures artifacts with policies and role-based access control. It also supports image replication, vulnerability scanning, and multi-tenancy.
 
 ---
 
-## ⚙️ 1. Install Harbor on K3s
+## 📌 Table of Contents
 
-### Using Helm
+1. [Prerequisites](#prerequisites)
+2. [Harbor Installation](#harbor-installation)
 
-```bash
-helm repo add harbor https://helm.goharbor.io
-helm repo update
+   * [Online Installer](#online-installer)
+   * [Offline Installer](#offline-installer)
+3. [Generating Certificates](#generating-certificates)
 
-kubectl create namespace harbor
-
-helm install harbor harbor/harbor \
-  --namespace harbor \
-  --set expose.ingress.hosts.core=harbor.example.com \
-  --set expose.ingress.tls.secretName=harbor-tls
-````
-
-✅ Verify installation:
-
-```bash
-kubectl get pods -n harbor
-```
-
-Access Harbor UI at:
-👉 `https://harbor.example.com`
+   * [Generate a CA Certificate](#1-generate-a-ca-certificate)
+   * [Generate a Server Certificate](#2-generate-a-server-certificate)
+4. [Configuring Harbor](#configuring-harbor)
+5. [Preparing & Installing Harbor](#preparing--installing-harbor)
+6. [Verifying Installation](#verifying-installation)
+7. [Integrating Harbor with K3s](#integrating-harbor-with-k3s)
+8. [Pushing Images from K3s to Harbor](#pushing-images-from-k3s-to-harbor)
+9. [Pulling Images from Harbor to K3s](#pulling-images-from-harbor-to-k3s)
+10. [Example Deployment](#example-deployment)
 
 ---
 
-## 🔑 2. Configure SSL Certificates
+## ✅ Prerequisites
 
-If using **self-signed certificates**:
+* A VM with Docker installed.
+* Root/sudo access.
+* K3s cluster installed and running.
+* Domain name resolution configured (`/etc/hosts`).
+
+---
+
+## 🚀 Harbor Installation
+
+### Online Installer
 
 ```bash
-openssl req -newkey rsa:4096 -nodes -sha256 -keyout harbor.key -x509 -days 365 -out harbor.crt
+wget https://github.com/goharbor/harbor/releases/download/v2.10.0/harbor-online-installer-v2.10.0.tgz
+tar xvf harbor-online-installer-v2.10.0.tgz
+cd harbor
 ```
 
-* Place certificates in `/etc/docker/certs.d/harbor.example.com/`
-* Update K3s with certificates:
+### Offline Installer
 
 ```bash
-sudo mkdir -p /etc/rancher/k3s/harbor
-sudo cp harbor.crt /etc/rancher/k3s/harbor/
-sudo cp harbor.key /etc/rancher/k3s/harbor/
-```
-
-Restart K3s service:
-
-```bash
-sudo systemctl restart k3s
+wget https://github.com/goharbor/harbor/releases/download/v2.13.2/harbor-offline-installer-v2.13.2.tgz
+tar xvf harbor-offline-installer-v2.13.2.tgz
+cd harbor
 ```
 
 ---
 
-## 🔐 3. Authenticate with Harbor
+## 🔐 Generating Certificates
 
-### Docker Login
+### 1. Generate a CA Certificate
+
+* Generate the **CA private key**:
 
 ```bash
-docker login harbor.example.com
+openssl genrsa -out ca.key 4096
 ```
 
-### K3s Secret for Pulling Images
+* Generate the **CA certificate**:
 
 ```bash
-kubectl create secret docker-registry harbor-creds \
-  --docker-server=harbor.example.com \
+openssl req -x509 -new -nodes -sha512 -days 3650 \
+ -subj "/C=IN/ST=Utter Pradesh/L=Kanpur/O=c3ihub/OU=Devops/CN=harbor.k8.c3ihub" \
+ -key ca.key \
+ -out ca.crt
+```
+
+### 2. Generate a Server Certificate
+
+* Generate the **server private key**:
+
+```bash
+openssl genrsa -out harbor.k8.c3ihub.key 4096
+```
+
+* Generate the **CSR (Certificate Signing Request)**:
+
+```bash
+openssl req -sha512 -new \
+ -subj "/C=CN/ST=Utter Pradesh/L=Kanpur/O=c3ihub/OU=Devops/CN=harbor.k8.c3ihub" \
+ -key harbor.k8.c3ihub.key \
+ -out harbor.k8.c3ihub.csr
+```
+
+* Create an **x509 v3 extension file**:
+
+```bash
+cat > v3.ext <<-EOF
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1=harbor.k8.c3ihub
+EOF
+```
+
+* Generate the **server certificate** using `v3.ext`:
+
+```bash
+openssl x509 -req -sha512 -days 3650 \
+ -extfile v3.ext \
+ -CA ca.crt -CAkey ca.key -CAcreateserial \
+ -in harbor.k8.c3ihub.csr \
+ -out harbor.k8.c3ihub.crt
+```
+
+* Place the certificates in Harbor directory:
+
+```bash
+sudo mkdir -p /etc/harbor/certs
+sudo cp harbor.k8.c3ihub.crt harbor.k8.c3ihub.key ca.crt /etc/harbor/certs/
+```
+
+---
+
+## ⚙️ Configuring Harbor
+
+Edit Harbor configuration file:
+
+```bash
+cd harbor
+nano harbor.yml.tmpl
+```
+
+Update the following values:
+
+```yaml
+hostname: harbor.k8.c3ihub
+https:
+  port: 443
+  certificate: /etc/harbor/certs/harbor.k8.c3ihub.crt
+  private_key: /etc/harbor/certs/harbor.k8.c3ihub.key
+```
+
+Save and copy the file:
+
+```bash
+cp harbor.yml.tmpl harbor.yml
+```
+
+---
+
+## 🛠️ Preparing & Installing Harbor
+
+* Prepare Harbor:
+
+```bash
+sudo ./prepare
+```
+
+* **Offline installer only** – load images:
+
+```bash
+sudo docker load -i harbor.v2.13.2.tar.gz
+```
+
+* Install Harbor:
+
+```bash
+sudo ./install.sh
+```
+
+---
+
+## 🔎 Verifying Installation
+
+Check running containers:
+
+```bash
+sudo docker ps
+```
+
+If Harbor is running, you should see multiple containers such as `harbor-core`, `harbor-portal`, `nginx`, etc.
+
+---
+
+## 🔗 Integrating Harbor with K3s
+
+1. Copy the Harbor CA certificate to K3s cluster nodes:
+
+```bash
+sudo mkdir -p /etc/docker/certs.d/harbor.k8.c3ihub/
+sudo cp ca.crt /etc/docker/certs.d/harbor.k8.c3ihub/
+```
+
+2. Edit `/etc/hosts` on each K3s node to resolve the Harbor domain:
+
+```
+<Harbor-VM-IP>   harbor.k8.c3ihub
+```
+
+---
+
+## 📤 Pushing Images from K3s to Harbor
+
+1. Login to Harbor:
+
+```bash
+sudo docker login harbor.k8.c3ihub
+```
+
+2. Tag your image:
+
+```bash
+sudo docker tag harbor.test.c3ihub/asset/am-react-frontend:16fc1436 \
+harbor.k8.c3ihub/test/am-react-frontend:16fc1436
+```
+
+3. Push to Harbor:
+
+```bash
+sudo docker push harbor.k8.c3ihub/test/am-react-frontend:16fc1436
+```
+
+---
+
+## 📥 Pulling Images from Harbor to K3s
+
+### Step 1: Test Access
+
+```bash
+docker login harbor.k8.c3ihub
+docker pull harbor.k8.c3ihub/test/am-react-frontend:16fc1436
+```
+
+* ✅ If successful → proceed.
+* ❌ If unauthorized → configure credentials.
+
+### Step 2: Create Kubernetes Secret (for private projects)
+
+```bash
+kubectl create secret docker-registry harbor-secret \
+  --docker-server=harbor.k8.c3ihub \
   --docker-username=admin \
-  --docker-password=yourpassword \
-  --namespace=default
+  --docker-password='<your-admin-password>' \
+  --docker-email='you@example.com'
 ```
 
-Patch the default service account to use the secret:
+### Step 3: Use Secret in Deployment
 
-```bash
-kubectl patch serviceaccount default \
-  -p '{"imagePullSecrets": [{"name": "harbor-creds"}]}'
-```
+Add the secret under `imagePullSecrets` in your Pod/Deployment manifest.
 
 ---
 
-## 📦 4. Push & Pull Images
-
-### Push an Image
-
-```bash
-docker tag nginx:latest harbor.example.com/library/nginx:latest
-docker push harbor.example.com/library/nginx:latest
-```
-
-### Deploy in K3s
+## 📦 Example Deployment
 
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-deployment
+  name: my-frontend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: nginx
+      app: frontend
   template:
     metadata:
       labels:
-        app: nginx
+        app: frontend
     spec:
       containers:
-      - name: nginx
-        image: harbor.example.com/library/nginx:latest
-        ports:
-        - containerPort: 80
+      - name: frontend
+        image: harbor.k8.c3ihub/test/am-react-frontend:16fc1436
+      imagePullSecrets:
+      - name: harbor-secret
 ```
 
 Apply:
 
 ```bash
-kubectl apply -f nginx-deployment.yaml
+kubectl apply -f deployment.yaml
 ```
 
 ---
 
-## 🔍 5. Verify Deployment
+## 🎯 Conclusion
 
-Check pods:
+You have successfully:
 
-```bash
-kubectl get pods
-```
+* Installed Harbor (online/offline installer).
+* Configured SSL certificates.
+* Integrated Harbor with a K3s cluster.
+* Pushed and pulled images between Harbor and K3s.
 
-Check logs:
-
-```bash
-kubectl logs -f <pod-name>
-```
+Harbor now acts as a **secure private registry** for your Kubernetes workloads.
 
 ---
 
-## ✅ Best Practices
-
-* Always use **TLS/SSL** for Harbor
-* Use **robot accounts** for CI/CD authentication
-* Regularly rotate **credentials**
-* Monitor Harbor logs for security issues
-* Enable **content trust & vulnerability scanning**
-
----
-
-## 📖 References
-
-* [Harbor Documentation](https://goharbor.io/docs/)
-* [K3s Documentation](https://rancher.com/docs/k3s/latest/en/)
-* [Helm Harbor Chart](https://artifacthub.io/packages/helm/harbor/harbor)
-
----
-
-## 👨‍💻 Author
-
-**Jyotiprakash Nayak**
-📍 IIT Kanpur | Electrical Engineering
-🔗 [Codeforces](https://codeforces.com/profile/solver1)
-
-```
-
----
-
-Do you want me to also **add architecture diagrams** (Harbor <-> K3s flow) inside this README with Markdown image placeholders so it looks even more professional for GitLab?
-```
+Would you like me to also **add a diagram** (architecture flow: VM with Harbor ⇄ K3s cluster ⇄ workloads) to make this README even more professional for GitLab?
