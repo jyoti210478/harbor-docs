@@ -1,7 +1,3 @@
-Got it ✅
-Here’s a **professional all-in-one `README.md`** for your GitLab repository.
-
-````markdown
 # Harbor + K3s Integration Guide
 
 This repository provides a step-by-step guide to integrating **Harbor** (container image registry) with **K3s** (lightweight Kubernetes).  
