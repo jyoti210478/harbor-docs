@@ -8,22 +8,22 @@ Harbor is an open-source **cloud-native registry** that secures artifacts with p
 
 ## 📌 Table of Contents
 
-1. [Prerequisites](##prerequisites)
-2. [Harbor Installation](##haharbor-installation)
+1. [Prerequisites](#prerequisites)
+2. [Harbor Installation](#haharbor-installation)
 
-   * [Online Installer](###online-installer)
-   * [Offline Installer](###offline-installer)
-3. [Generating Certificates](##generating-certificates)
+   * [Online Installer](#online-installer)
+   * [Offline Installer](#offline-installer)
+3. [Generating Certificates](#generating-certificates)
 
-   * [Generate a CA Certificate](###1-generate-a-ca-certificate)
-   * [Generate a Server Certificate](###2-generate-a-server-certificate)
-4. [Configuring Harbor](##configuring-harbor)
-5. [Preparing & Installing Harbor](##preparing--installing-harbor)
-6. [Verifying Installation](##verifying-installation)
-7. [Integrating Harbor with K3s](##integrating-harbor-with-k3s)
-8. [Pushing Images from K3s to Harbor](##pushing-images-from-k3s-to-harbor)
-9. [Pulling Images from Harbor to K3s](##pulling-images-from-harbor-to-k3s)
-10. [Example Deployment](##example-deployment)
+   * [Generate a CA Certificate](#1-generate-a-ca-certificate)
+   * [Generate a Server Certificate](#2-generate-a-server-certificate)
+4. [Configuring Harbor](#configuring-harbor)
+5. [Preparing & Installing Harbor](#preparing--installing-harbor)
+6. [Verifying Installation](#verifying-installation)
+7. [Integrating Harbor with K3s](#integrating-harbor-with-k3s)
+8. [Pushing Images from K3s to Harbor](#pushing-images-from-k3s-to-harbor)
+9. [Pulling Images from Harbor to K3s](#pulling-images-from-harbor-to-k3s)
+10. [Example Deployment](#example-deployment)
 
 ---
 
