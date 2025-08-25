@@ -70,7 +70,7 @@ openssl genrsa -out ca.key 4096
 
 ```bash
 openssl req -x509 -new -nodes -sha512 -days 3650 \
- -subj "/C=IN/ST=Utter Pradesh/L=Kanpur/O=c3ihub/OU=Devops/CN=harbor.k8.c3ihub" \
+ -subj "/C=IN/ST=Utter Pradesh/L=Kanpur/O=c3ihub/OU=Devops/CN=core.harbor.k8.c3ihub" \
  -key ca.key \
  -out ca.crt
 ```
@@ -80,16 +80,16 @@ openssl req -x509 -new -nodes -sha512 -days 3650 \
 * Generate the **server private key**:
 
 ```bash
-openssl genrsa -out harbor.k8.c3ihub.key 4096
+openssl genrsa -out core.harbor.k8.c3ihub.key 4096
 ```
 
 * Generate the **CSR (Certificate Signing Request)**:
 
 ```bash
 openssl req -sha512 -new \
- -subj "/C=CN/ST=Utter Pradesh/L=Kanpur/O=c3ihub/OU=Devops/CN=harbor.k8.c3ihub" \
- -key harbor.k8.c3ihub.key \
- -out harbor.k8.c3ihub.csr
+ -subj "/C=CN/ST=Utter Pradesh/L=Kanpur/O=c3ihub/OU=Devops/CN=core.harbor.k8.c3ihub" \
+ -key core.harbor.k8.c3ihub.key \
+ -out core.harbor.k8.c3ihub.csr
 ```
 
 * Create an **x509 v3 extension file**:
@@ -103,7 +103,7 @@ extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1=harbor.k8.c3ihub
+DNS.1=core.harbor.k8.c3ihub
 EOF
 ```
 
@@ -113,15 +113,15 @@ EOF
 openssl x509 -req -sha512 -days 3650 \
  -extfile v3.ext \
  -CA ca.crt -CAkey ca.key -CAcreateserial \
- -in harbor.k8.c3ihub.csr \
- -out harbor.k8.c3ihub.crt
+ -in core.harbor.k8.c3ihub.csr \
+ -out core.harbor.k8.c3ihub.crt
 ```
 
 * Place the certificates in Harbor directory:
 
 ```bash
 sudo mkdir -p /etc/harbor/certs
-sudo cp harbor.k8.c3ihub.crt harbor.k8.c3ihub.key ca.crt /etc/harbor/certs/
+sudo cp core.harbor.k8.c3ihub.crt core.harbor.k8.c3ihub.key ca.crt /etc/harbor/certs/
 ```
 
 ---
@@ -138,11 +138,11 @@ nano harbor.yml.tmpl
 Update the following values:
 
 ```yaml
-hostname: harbor.k8.c3ihub
+hostname: core.harbor.k8.c3ihub
 https:
   port: 443
-  certificate: /etc/harbor/certs/harbor.k8.c3ihub.crt
-  private_key: /etc/harbor/certs/harbor.k8.c3ihub.key
+  certificate: /etc/harbor/certs/core.harbor.k8.c3ihub.crt
+  private_key: /etc/harbor/certs/core.harbor.k8.c3ihub.key
 ```
 
 Save and copy the file:
@@ -192,8 +192,8 @@ If Harbor is running, you should see multiple containers such as `harbor-core`, 
 1. Copy the Harbor CA certificate to K3s cluster nodes:
 
 ```bash
-sudo mkdir -p /etc/docker/certs.d/harbor.k8.c3ihub/
-sudo cp ca.crt /etc/docker/certs.d/harbor.k8.c3ihub/
+sudo mkdir -p /etc/docker/certs.d/core.harbor.k8.c3ihub/
+sudo cp ca.crt /etc/docker/certs.d/core.harbor.k8.c3ihub/
 ```
 
 2. Edit `/etc/hosts` on each K3s node to resolve the Harbor domain:
@@ -209,20 +209,20 @@ sudo cp ca.crt /etc/docker/certs.d/harbor.k8.c3ihub/
 1. Login to Harbor:
 
 ```bash
-sudo docker login harbor.k8.c3ihub
+sudo docker login core.harbor.k8.c3ihub
 ```
 
 2. Tag your image:
 
 ```bash
 sudo docker tag harbor.test.c3ihub/asset/am-react-frontend:16fc1436 \
-harbor.k8.c3ihub/test/am-react-frontend:16fc1436
+core.harbor.k8.c3ihub/test/am-react-frontend:16fc1436
 ```
 
 3. Push to Harbor:
 
 ```bash
-sudo docker push harbor.k8.c3ihub/test/am-react-frontend:16fc1436
+sudo docker push core.harbor.k8.c3ihub/test/am-react-frontend:16fc1436
 ```
 
 ---
@@ -232,8 +232,8 @@ sudo docker push harbor.k8.c3ihub/test/am-react-frontend:16fc1436
 ### Step 1: Test Access
 
 ```bash
-docker login harbor.k8.c3ihub
-docker pull harbor.k8.c3ihub/test/am-react-frontend:16fc1436
+docker login core.harbor.k8.c3ihub
+docker pull core.harbor.k8.c3ihub/test/am-react-frontend:16fc1436
 ```
 
 * ✅ If successful → proceed.
@@ -243,7 +243,7 @@ docker pull harbor.k8.c3ihub/test/am-react-frontend:16fc1436
 
 ```bash
 kubectl create secret docker-registry harbor-secret \
-  --docker-server=harbor.k8.c3ihub \
+  --docker-server=core.harbor.k8.c3ihub \
   --docker-username=admin \
   --docker-password='<your-admin-password>' \
   --docker-email='you@example.com'
@@ -274,7 +274,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: harbor.k8.c3ihub/test/am-react-frontend:16fc1436
+        image: core.harbor.k8.c3ihub/test/am-react-frontend:16fc1436
       imagePullSecrets:
       - name: harbor-secret
 ```
@@ -297,7 +297,3 @@ You have successfully:
 * Pushed and pulled images between Harbor and K3s.
 
 Harbor now acts as a **secure private registry** for your Kubernetes workloads.
-
----
-
-Would you like me to also **add a diagram** (architecture flow: VM with Harbor ⇄ K3s cluster ⇄ workloads) to make this README even more professional for GitLab?
