@@ -184,7 +184,7 @@ sudo cp ca.crt /etc/docker/certs.d/core.harbor.k8.c3ihub/
 2. Edit `/etc/hosts` on each K3s node to resolve the Harbor domain:
 
 ```
-<Harbor-VM-IP>   harbor.k8.c3ihub
+<Harbor-VM-IP>   core.harbor.k8.c3ihub
 ```
 
 ---
