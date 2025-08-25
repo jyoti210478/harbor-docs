@@ -1,6 +1,6 @@
 # Harbor Installation and Integration with K3s Cluster
 
-This document provides a **step-by-step guide** for installing Harbor (both online and offline installers) in a Virtual Machine (VM) and integrating it with a K3s Kubernetes cluster.
+This document provides a **step-by-step guide** for installing Harbor (online) in a Virtual Machine (VM) and integrating it with a K3s Kubernetes cluster.
 
 Harbor is an open-source **cloud-native registry** that secures artifacts with policies and role-based access control. It also supports image replication, vulnerability scanning, and multi-tenancy.
 
@@ -12,7 +12,7 @@ Harbor is an open-source **cloud-native registry** that secures artifacts with p
 2. [Harbor Installation](#-harbor-installation)
 
    * [Online Installer](#online-installer)
-   * [Offline Installer](#offline-installer)
+
 3. [Generating Certificates](#-generating-certificates)
 
    * [Generate a CA Certificate](#1-generate-a-ca-certificate)
@@ -45,15 +45,6 @@ wget https://github.com/goharbor/harbor/releases/download/v2.10.0/harbor-online-
 tar xvf harbor-online-installer-v2.10.0.tgz
 cd harbor
 ```
-
-### Offline Installer
-
-```bash
-wget https://github.com/goharbor/harbor/releases/download/v2.13.2/harbor-offline-installer-v2.13.2.tgz
-tar xvf harbor-offline-installer-v2.13.2.tgz
-cd harbor
-```
-
 ---
 
 ## 🔐 Generating Certificates
@@ -159,12 +150,6 @@ cp harbor.yml.tmpl harbor.yml
 
 ```bash
 sudo ./prepare
-```
-
-* **Offline installer only** – load images:
-
-```bash
-sudo docker load -i harbor.v2.13.2.tar.gz
 ```
 
 * Install Harbor:
